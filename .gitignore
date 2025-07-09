@@ -1,0 +1,9 @@
+# dependencies
+node_modules/
+
+# dotenv files
+.env
+
+# logs and system files
+*.log
+.DS_Store
