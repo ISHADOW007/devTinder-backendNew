@@ -1,10 +1,12 @@
 const express = require("express");
 const { validateSignUpData } = require("../utils/validation");
 const {userAuth}= require("../middlewares/auth")
+const {genGoogleURL , oauth2Client} =  require("../utils/auth.google.js")
 const bcrypt = require("bcrypt");
 const authRouter = express.Router();
 const User = require("../models/user"); // Your Mongoose User model
-
+const url = require('url');
+const { google } = require("googleapis");
 
 authRouter.post("/signup", async (req, res) => {
   try {
@@ -99,6 +101,52 @@ authRouter.post("/logout", async (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
+authRouter.get("/google",genGoogleURL); 
 
+authRouter.get("/auth/google",async (req,res) => {   //  "http://localhost:7777/auth/google"
+    console.log(req.session.state); /// session state from google
+    console.log(req.query.state); /// session state from google
+
+    // Handle the OAuth 2.0 server response
+    let q = url.parse(req.url, true).query;
+
+    if (q.error) { // An error response e.g. error=access_denied
+      console.log('Error:' + q.error);
+    } else if (q.state !== req.session.state) { //check state value
+      console.log('State mismatch. Possible CSRF attack');
+      res.end('State mismatch. Possible CSRF attack');
+    } else { // Get access and refresh tokens (if access_type is offline)
+      let { tokens } = await oauth2Client.getToken(q.code);
+      oauth2Client.setCredentials(tokens);
+
+      /** Save credential to the global variable in case access token was refreshed.
+        * ACTION ITEM: In a production app, you likely want to save the refresh token
+        *              in a secure persistent database instead. */
+      console.log("Google Tokens : " ,tokens);
+      // console.log("Google oauth2Client : " ,oauth2Client);
+      console.log("Success Google Auth :) ");
+
+      oauth2Client.setCredentials({
+        access_token: tokens.access_token,     // or use the refresh_token to get new access_token
+      });
+
+
+      const oauth2 = google.oauth2({
+        auth: oauth2Client,
+        version: 'v2',
+      });
+
+    const userInfo = await oauth2.userinfo.get();
+    const {email,name,given_name,family_name,verified_email,picture}=userInfo.data
+    console.log(userInfo.data);
+
+    console.log(email,name,given_name,family_name,verified_email,picture);
+    
+
+    }
+  
+  res.
+    redirect(process.env.FRONTEND_URL)
+});
 
 module.exports = authRouter;
