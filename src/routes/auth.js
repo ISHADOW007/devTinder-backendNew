@@ -1,12 +1,14 @@
 const express = require("express");
 const { validateSignUpData } = require("../utils/validation");
 const {userAuth}= require("../middlewares/auth")
-const {genGoogleURL , oauth2Client} =  require("../utils/auth.google.js")
+const {genGoogleURL , oauth2Client} =  require("../auth/google.js")
+const {genGitHubURL} = require("../auth/github.js");
 const bcrypt = require("bcrypt");
 const authRouter = express.Router();
 const User = require("../models/user"); // Your Mongoose User model
 const url = require('url');
 const { google } = require("googleapis");
+const axios = require("axios");
 
 authRouter.post("/signup", async (req, res) => {
   try {
@@ -101,7 +103,8 @@ authRouter.post("/logout", async (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-authRouter.get("/google",genGoogleURL); 
+authRouter.get("/google",genGoogleURL);
+authRouter.get("/github",genGitHubURL);
 
 authRouter.get("/auth/google",async (req,res) => {   //  "http://localhost:7777/auth/google"
     console.log(req.session.state); /// session state from google
@@ -147,6 +150,61 @@ authRouter.get("/auth/google",async (req,res) => {   //  "http://localhost:7777/
   
   res.
     redirect(process.env.FRONTEND_URL)
+});
+
+authRouter.get("/auth/github",async (req,res) => { // http://localhost:7777/auth/google
+  const code = req.query.code;
+  if (!code) return res.status(400).send("No code provided");
+
+  try {
+    // Step 1: Exchange code for access token
+    const tokenRes = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+      },
+      {
+        headers: { Accept: "application/json" },
+      }
+    );
+
+    const access_token = tokenRes.data.access_token;
+    if (!access_token) return res.status(401).send("Access token not received");
+
+    // Step 2: Fetch GitHub profile
+    const userRes = await axios.get("https://api.github.com/user", {
+      headers: { Authorization: `token ${access_token}` },
+    });
+
+    // Step 3: Fetch verified primary email
+    const emailRes = await axios.get("https://api.github.com/user/emails", {
+      headers: { Authorization: `token ${access_token}` },
+    });
+
+    const emails = emailRes.data;
+    const primaryEmail = emails.find((e) => e.primary && e.verified);
+    if (!primaryEmail)
+      return res.status(403).send("No verified primary email found");
+
+    const { email, verified } = primaryEmail;
+    const { name, avatar_url } = userRes.data;
+
+    console.log("User GitHub: ",userRes.data);
+    console.log("User GitHub Emails: ",emails);
+
+    return res
+      .status(200)
+      .json({
+          data: userRes.data,
+          emails : emails,
+          message: "User successfully authenticated via GitHub"
+      });
+  } catch (err) {
+    console.error("GitHub OAuth error:", err.response?.data || err.message);
+    res.status(500).send("GitHub OAuth failed");
+  }
 });
 
 module.exports = authRouter;
