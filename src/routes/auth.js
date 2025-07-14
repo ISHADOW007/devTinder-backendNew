@@ -50,7 +50,7 @@ authRouter.post("/signup", async (req, res) => {
       sameSite: "lax",
     });
 
-    res.status(201).json({ message: "User added successfully" });
+    res.status(201).json({ message: "User added successfully",data:user });
   } catch (err) {
     console.error("Signup error:", err);
     res.status(500).json({ error: "Internal Server Error" });

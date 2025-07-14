@@ -82,7 +82,7 @@ requestRouter.post("/request/review/:status/:requestId", userAuth, async (req, r
 
     // ✅ Extract 'status' and 'requestId' from route parameters
     const { status, requestId } = req.params;
-    console.log( status, requestId)
+    
 
     // ✅ Only allow these statuses
     const allowedStatus = ["accepted", "rejected"];

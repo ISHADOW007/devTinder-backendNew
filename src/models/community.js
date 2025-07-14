@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { CommunityMessage } = require("./communityChat");
 
 const joinRequestSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -19,5 +20,25 @@ const communitySchema = new mongoose.Schema({
   joinRequests: [joinRequestSchema], // ✅ subdocument
   isPublic: { type: Boolean, default: true },
 }, { timestamps: true });
+
+
+
+
+
+// ⛔ Delete all community messages when community is deleted
+communitySchema.pre("findOneAndDelete", async function (next) {
+  const communityId = this.getQuery()._id;
+  try {
+    await CommunityMessage.deleteMany({ community: communityId });
+    console.log(`🧹 Messages of community ${communityId} deleted`);
+    next();
+  } catch (err) {
+    console.error("❌ Failed to delete messages:", err);
+    next(err);
+  }
+});
+
+module.exports = mongoose.model("Community", communitySchema);
+
 
 module.exports = mongoose.model("Community", communitySchema);

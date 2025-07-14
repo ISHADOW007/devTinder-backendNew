@@ -9,6 +9,7 @@ const { validateEditProfileData } = require("../utils/validation");
 profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {
     const user = req.user;
+    
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -28,9 +29,9 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
       // return res.status(400).send("")
     }
     const loggedInUser=req.user;
-    console.log(loggedInUser)
+   
     Object.keys(req.body).forEach((key)=>loggedInUser[key]=req.body[key])
-    console.log(loggedInUser)
+  
      await loggedInUser.save();
     res.send("hii")
 

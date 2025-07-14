@@ -10,6 +10,7 @@ const { userAuth } = require("../middlewares/auth");
 
 
 const Community = require("../models/community"); // Your Mongoose User model
+const { CommunityMessage } = require("../models/communityChat");
 
 
 // GET /communities/:id - Get a community by ID
@@ -40,6 +41,7 @@ communityRouter.post("/communities",userAuth, async (req, res) => {
 
  communityRouter.get("/allCommunityList", async (req, res) => {
    const communities = await Community.find({}).populate("creator", "firstName lastName emailId");
+   console.log(communities)
    res.json(communities);
  });
 
@@ -154,7 +156,7 @@ communityRouter.get("/communities/:id/members", userAuth, async (req, res) => {
 
     res.json(community); // ✅ Includes full data: members, admins, creator
   } catch (err) {
-    console.error(err);
+    
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -256,7 +258,7 @@ communityRouter.get("/communities/my", userAuth, async (req, res) => {
       .populate("admins", "firstName lastName emailId")
       .populate("members", "firstName lastName emailId");
 
-      console.log(communities[0].members)
+     
 
     // Map each community to include user's role
     const result = communities.map((comm) => {
@@ -296,6 +298,56 @@ communityRouter.get("/communities/:id", userAuth, async (req, res) => {
   } catch (err) {
     console.error("Error fetching community by ID:", err.message);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+
+// DELETE community by ID (only creator or admin allowed ideally)
+communityRouter.delete("/community/:id", userAuth, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user._id;
+
+  try {
+    const community = await Community.findById(id);
+    if (!community) return res.status(404).json({ error: "Community not found" });
+
+    if (!community.creator.equals(userId)) {
+      return res.status(403).json({ error: "Only the creator can delete the community." });
+    }
+
+    await Community.findOneAndDelete({ _id: id }); // ✅ triggers middleware
+    res.status(200).json({ message: "Community and its messages deleted successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete community" });
+  }
+});
+
+
+
+// DELETE /user/communities
+communityRouter.delete("/user/communities", userAuth, async (req, res) => {
+  try {
+    const communities = await Community.find({ creator: req.user._id });
+
+    if (communities.length === 0) {
+      return res.status(404).json({ message: "No communities to delete." });
+    }
+
+    const communityIds = communities.map((c) => c._id);
+
+    // Delete all related messages
+    await CommunityMessage.deleteMany({ community: { $in: communityIds } });
+
+    // Delete the communities
+    await Community.deleteMany({ _id: { $in: communityIds } });
+
+    res.status(200).json({ message: "All your communities and messages deleted successfully." });
+  } catch (err) {
+    console.error("Bulk delete error:", err);
+    res.status(500).json({ error: "Failed to delete communities." });
   }
 });
 
