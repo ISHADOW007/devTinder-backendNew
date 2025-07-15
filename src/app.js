@@ -36,6 +36,7 @@ const requestRouter = require("./routes/request");
 const userRouter = require("./routes/user");
 const chatRouter = require("./routes/chat");
 const communityRouter = require("./routes/community");
+const uploadRouter = require("./routes/upload");
 
 const communityMessageRouter= require("./routes/communityMessage");
 
@@ -46,6 +47,7 @@ app.use("/", userRouter);
 app.use("/", chatRouter);
 app.use("/",communityRouter)
 app.use("/",communityMessageRouter)
+app.use("/",uploadRouter)
 
 // ✅ Optional health check
 app.get("/", (req, res) => {
@@ -54,6 +56,7 @@ app.get("/", (req, res) => {
 
 // 🔌 Socket setup
 const initializeSocket = require("./utils/socket");
+
 
 
 initializeSocket(server);
