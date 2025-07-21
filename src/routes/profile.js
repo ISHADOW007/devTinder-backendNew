@@ -17,7 +17,7 @@ profileRouter.get("/profile/view", userAuth, async (req, res) => {
 
     res.send(user);
   } catch (err) {
-    console.error("Profile error:", err);
+   
     res.status(401).json({ error: "Invalid or expired token" });
   }
 });
@@ -36,7 +36,7 @@ profileRouter.patch("/profile/edit", userAuth, async (req, res) => {
     res.send("hii")
 
   } catch (err) {
-    console.error("Profile error:", err);
+    
     res.status(400).send("ERROR :" + err.message);
   }
 });

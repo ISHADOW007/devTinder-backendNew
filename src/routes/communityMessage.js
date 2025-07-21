@@ -12,7 +12,7 @@ communityMessageRouter.get("/community/:communityId", userAuth, async (req, res)
 
   try {
     const community = await Community.findById(communityId);
-    console.log("community :",community)
+    
     if (!community) return res.status(404).json({ error: "Community not found" });
 
     const isMember = community.members.some(memberId => memberId.equals(userId));
@@ -22,7 +22,7 @@ communityMessageRouter.get("/community/:communityId", userAuth, async (req, res)
     const messages = await CommunityMessage.find({ community: communityId })
       .sort({ createdAt: 1 })
       .populate("sender", "firstName lastName");
-    console.log("CommunityMessage:",messages)
+    
 
     res.json(messages);
   } catch (err) {

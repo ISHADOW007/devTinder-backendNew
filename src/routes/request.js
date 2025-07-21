@@ -63,7 +63,7 @@ requestRouter.post("/request/send/:status/:toUserId", userAuth, async (req, res)
 
   } catch (error) {
     // ❌ Catch any unexpected errors
-    console.error("Error sending connection request:", error);
+   
 
     return res.status(500).json({
       error: "Failed to send connection request",

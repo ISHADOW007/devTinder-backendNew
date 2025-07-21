@@ -1,15 +1,12 @@
-// socket.js
 const socket = require("socket.io");
 const crypto = require("crypto");
 const User = require("../models/user");
-
-
 const { Chat } = require("../models/chat");
 const ConnectionRequest = require("../models/connectionRequest");
 const { CommunityMessage } = require("../models/communityChat");
 const Community = require("../models/community");
 
-// Utility functions...
+// Utility functions
 const getSecretRoomId = (userId1, userId2) =>
   crypto.createHash("sha256").update([userId1, userId2].sort().join("$")).digest("hex");
 const generateRoomId = (id1, id2) => [id1, id2].sort().join("#");
@@ -21,38 +18,30 @@ const initializeSocket = (server) => {
   const io = socket(server, {
     cors: {
       origin: "http://localhost:5173",
+      methods: ["GET", "POST"],
+      credentials: true,
     },
   });
 
   io.on("connection", (socket) => {
     console.log(`🔌 Socket connected: ${socket.id}`);
 
-    // =============== 1️⃣ USER ONLINE TRACKING ==================
+    // ========== 1️⃣ USER ONLINE TRACKING ==========
     socket.on("registerOnline", async ({ userId }) => {
-       console.log("register")
       socket.userId = userId;
-
-      // Mark user online in DB
       await User.findByIdAndUpdate(userId, { isOnline: true });
-
-      // Notify others
       socket.broadcast.emit("userStatusChanged", {
         userId,
         isOnline: true,
       });
-
       console.log(`🟢 User ${userId} is online`);
     });
 
-    // Manual disconnect (on logout)
     socket.on("manualDisconnect", async ({ userId }) => {
-      console.log(`🚪 Manual disconnect for ${userId}`);
-
       await User.findByIdAndUpdate(userId, {
         isOnline: false,
         lastSeen: new Date(),
       });
-
       socket.broadcast.emit("userStatusChanged", {
         userId,
         isOnline: false,
@@ -60,7 +49,7 @@ const initializeSocket = (server) => {
       });
     });
 
-    // =============== 2️⃣ PRIVATE 1-1 CHAT ==================
+    // ========== 2️⃣ PRIVATE CHAT ==========
     socket.on("joinChat", ({ userId, targetUserId }) => {
       const roomId = getSecretRoomId(userId, targetUserId);
       socket.join(roomId);
@@ -69,10 +58,7 @@ const initializeSocket = (server) => {
     socket.on("sendMessage", async ({ userId, targetUserId, firstName, lastName, text }) => {
       const roomId = getSecretRoomId(userId, targetUserId);
 
-      let chat = await Chat.findOne({
-        participants: { $all: [userId, targetUserId] },
-      });
-
+      let chat = await Chat.findOne({ participants: { $all: [userId, targetUserId] } });
       if (!chat) {
         chat = new Chat({ participants: [userId, targetUserId], messages: [] });
       }
@@ -80,38 +66,76 @@ const initializeSocket = (server) => {
       chat.messages.push({ senderId: userId, text });
       await chat.save();
 
-      io.to(roomId).emit("messageReceived", {
-        firstName,
-        lastName,
-        text,
-      });
+      io.to(roomId).emit("messageReceived", { firstName, lastName, text });
     });
 
-    // =============== 3️⃣ COMMUNITY CHAT ==================
+    // ========== 3️⃣ COMMUNITY CHAT (TEXT + IMAGE) ==========
     socket.on("joinCommunity", ({ userId, communityId }) => {
       socket.join(`community_${communityId}`);
     });
 
-    socket.on("sendCommunityMessage", async ({ userId, communityId, firstName, lastName, text }) => {
-      const community = await Community.findById(communityId);
-      if (!community || !community.members.includes(userId)) return;
-
-      const msg = new CommunityMessage({
-        community: communityId,
-        sender: userId,
-        content: text,
-        messageType: "text",
-      });
-      await msg.save();
-
-      io.to(`community_${communityId}`).emit("receiveCommunityMessage", {
+    socket.on("sendCommunityMessage", async (payload) => {
+      const {
+        userId,
+        communityId,
         firstName,
         lastName,
         text,
+        messageType = "text",
+        fileUrl,
+        fileName,
+      } = payload;
+
+      const community = await Community.findById(communityId);
+      if (!community || !community.members.includes(userId)) return;
+
+      const newMsg = new CommunityMessage({
+        community: communityId,
+        sender: userId,
+        messageType,
+        content: messageType === "text" ? text : undefined,
+        fileUrl,
+        fileName,
+      });
+
+      await newMsg.save();
+
+      io.to(`community_${communityId}`).emit("receiveCommunityMessage", {
+        _id: newMsg._id,
+        sender: { firstName, lastName, _id: userId },
+        messageType,
+        content: text,
+        fileUrl,
+        fileName,
+        createdAt: newMsg.createdAt,
       });
     });
 
-    // =============== 4️⃣ SPEED MATCHING ==================
+    // ====== DELETE COMMUNITY MESSAGE ======
+    socket.on("deleteCommunityMessage", async ({ messageId, userId }) => {
+      try {
+        const message = await CommunityMessage.findById(messageId);
+        if (!message) return;
+
+        // Only sender can delete
+        if (String(message.sender) !== String(userId)) return;
+
+        const communityId = message.community;
+
+        // Permanently delete from DB
+        await CommunityMessage.findByIdAndDelete(messageId);
+
+        // Notify all users in the community
+        io.to(`community_${communityId}`).emit("messageDeleted", {
+          messageId,
+          forEveryone: true,
+        });
+      } catch (err) {
+        console.error("Failed to delete community message:", err.message);
+      }
+    });
+
+    // ========== 4️⃣ SPEED MATCHING ==========
     socket.on("joinQueue", () => {
       if (queue.includes(socket.id)) return;
       queue.push(socket.id);
@@ -122,7 +146,6 @@ const initializeSocket = (server) => {
       while (queue.length >= 2) {
         const user1 = queue.shift();
         const user2 = queue.shift();
-
         const roomId = generateRoomId(user1, user2);
         matchRooms.set(roomId, [user1, user2]);
 
@@ -139,7 +162,6 @@ const initializeSocket = (server) => {
     socket.on("signal", ({ roomId, data }) => {
       const peers = matchRooms.get(roomId);
       if (!peers) return;
-
       peers.forEach((peerId) => {
         if (peerId !== socket.id) {
           io.to(peerId).emit("signal", { from: socket.id, data });
@@ -160,25 +182,21 @@ const initializeSocket = (server) => {
       }
     };
 
-    // =============== 5️⃣ DISCONNECT ==================
+    // ========== 5️⃣ DISCONNECT ==========
     socket.on("disconnect", async () => {
       console.log(`❌ Socket disconnected: ${socket.id}`);
-
       if (socket.userId) {
         await User.findByIdAndUpdate(socket.userId, {
           isOnline: false,
           lastSeen: new Date(),
         });
-
         socket.broadcast.emit("userStatusChanged", {
           userId: socket.userId,
           isOnline: false,
           lastSeen: new Date(),
         });
-
         console.log(`🔴 User ${socket.userId} went offline`);
       }
-
       cleanUpSpeedMatch(socket.id);
     });
   });

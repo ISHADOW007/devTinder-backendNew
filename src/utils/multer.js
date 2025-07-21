@@ -1,16 +1,16 @@
-// utils/multer.js
-const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('./cloudinary');
+const multer = require("multer");
 
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'devtinder-images',
-    allowed_formats: ['jpg', 'png', 'jpeg'],
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./public/temp");
   },
+  filename: function (req, file, cb) {
+    cb(null, file.originalname);
+  }
 });
 
-const parser = multer({ storage });
+const upload = multer({
+  storage,
+});
 
-module.exports = parser;
+module.exports = { upload };

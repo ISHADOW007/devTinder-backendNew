@@ -78,7 +78,7 @@ authRouter.post("/login", async (req, res) => {
     // ✅ Generate JWT Token
     const token = await user.getJWT();
 
-    console.log(user)
+   
 
     // ✅ Set token in HTTP-only cookie
     res.cookie("token", token, {
@@ -89,7 +89,7 @@ authRouter.post("/login", async (req, res) => {
 
     res.send(user);
   } catch (err) {
-    console.error("Login error:", err);
+    
     res.status(500).send("Internal Server Error");
   }
 });

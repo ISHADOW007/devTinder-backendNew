@@ -18,9 +18,9 @@ const communityMessageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: function () {
-      return this.messageType === "text";
-    },
+    // required: function () {
+    //   return this.messageType === "text";
+    // },
   },
   fileUrl: {
     type: String, // for file/image messages
@@ -36,6 +36,8 @@ const communityMessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  
+  deletedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 }, { timestamps: true });
 
 const CommunityMessage = mongoose.model("CommunityMessage", communityMessageSchema);

@@ -38,7 +38,12 @@ communitySchema.pre("findOneAndDelete", async function (next) {
   }
 });
 
-module.exports = mongoose.model("Community", communitySchema);
+// Add in your Mongoose schema file (e.g., Community.js)
+communitySchema.index({ name: "text" }); // for search
+communitySchema.index({ creator: 1 });    // for filtering by creator
+
+communitySchema.index({ isPublic: 1 });   // for filtering public/private
+
 
 
 module.exports = mongoose.model("Community", communitySchema);

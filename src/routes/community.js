@@ -19,8 +19,9 @@ const { CommunityMessage } = require("../models/communityChat");
 
 
 communityRouter.post("/communities",userAuth, async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description ,isPublic} = req.body;
   const creatorId = req.user._id; // from auth middleware
+  console.log(isPublic)
 
   const community = await Community.create({
     name,
@@ -28,6 +29,7 @@ communityRouter.post("/communities",userAuth, async (req, res) => {
     creator: creatorId,
     members: [creatorId],
     admins: [creatorId],
+    isPublic
   });
   community.save()
   res.status(201).json(community);
@@ -39,11 +41,40 @@ communityRouter.post("/communities",userAuth, async (req, res) => {
    res.json(communities);
  });
 
- communityRouter.get("/allCommunityList", async (req, res) => {
-   const communities = await Community.find({}).populate("creator", "firstName lastName emailId");
-   console.log(communities)
-   res.json(communities);
- });
+communityRouter.get("/allCommunityList", async (req, res) => {
+  try {
+    const { search = "", page = 1, limit = 10, isPublic } = req.query;
+
+    const query = {
+      name: { $regex: search, $options: "i" },
+    };
+
+    if (isPublic !== undefined) {
+      query.isPublic = isPublic === "true"; // filter by boolean
+    }
+
+    const total = await Community.countDocuments(query);
+
+    const communities = await Community.find(query)
+      .populate("creator", "firstName lastName emailId")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * parseInt(limit))
+      .limit(parseInt(limit));
+
+    res.json({
+      data: communities,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error("Error fetching communities:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+});
+
+
+
 
 // router.post("/:id/join", async (req, res) => {
 //   const userId = req.user;
@@ -107,6 +138,39 @@ communityRouter.get("/communities/:id/allJoin-requests-forCreator",userAuth, asy
   res.json(community.joinRequests);
 });
 
+// routes/communityRoutes.js or similar
+communityRouter.post('/:id/join-direct', userAuth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const community = await Community.findById(req.params.id);
+
+    if (!community) return res.status(404).json({ error: 'Community not found' });
+
+    if (!community.isPublic) {
+      return res.status(403).json({ error: 'Cannot auto-join private community' });
+    }
+
+    // Already a member
+    if (community.members.includes(userId)) {
+      return res.status(200).json({ message: 'Already a member' });
+    }
+
+    // Add user to members
+    community.members.push(userId);
+
+    // Optionally make user admin of public community
+    // community.admins.push(userId);
+
+    await community.save();
+
+    res.status(200).json({ message: 'Joined community successfully' });
+  } catch (err) {
+    console.error('Join Direct Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 communityRouter.post("/communities/:id/handleJoinRequest", userAuth, async (req, res) => {
   const { requestId, status } = req.body;  // <-- changed action to status
   const community = await Community.findById(req.params.id);
@@ -146,9 +210,9 @@ community.joinRequests = community.joinRequests.filter((joinReq) => {
 communityRouter.get("/communities/:id/members", userAuth, async (req, res) => {
   try {
     const community = await Community.findById(req.params.id)
-      .populate("members", "firstName lastName emailId")
-      .populate("admins", "firstName lastName emailId")
-      .populate("creator", "firstName lastName emailId");
+      .populate("members", "firstName lastName emailId isOnline lastSeen")
+      .populate("admins", "firstName lastName emailId isOnline lastSeen")
+      .populate("creator", "firstName lastName emailId isOnline lastSeen");
 
     if (!community) {
       return res.status(404).json({ error: "Community not found" });
