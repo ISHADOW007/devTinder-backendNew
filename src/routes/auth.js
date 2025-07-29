@@ -10,6 +10,13 @@ const url = require('url');
 const { google } = require("googleapis");
 const axios = require("axios");
 
+const cookieOption ={
+  httpOnly: true,
+  secure: true, // 🔐 Set to true in production (HTTPS)
+  sameSite: "None",
+};
+
+
 authRouter.post("/signup", async (req, res) => {
   try {
     const { password, lastName, emailId, firstName } = req.body;
@@ -44,11 +51,7 @@ authRouter.post("/signup", async (req, res) => {
     const token = user.getJWT(); // No need to await – it's not async
 
     // ✅ Set token in HTTP-only cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: false, // 🔐 Set to true in production (HTTPS)
-      sameSite: "lax",
-    });
+    res.cookie("token", token,cookieOption);
 
     res.status(201).json({ message: "User added successfully",data:user });
   } catch (err) {
@@ -81,11 +84,7 @@ authRouter.post("/login", async (req, res) => {
    
 
     // ✅ Set token in HTTP-only cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: false, // set true in production (HTTPS)
-      sameSite: "lax"
-    });
+    res.cookie("token", token,cookieOption);
 
     res.send(user);
   } catch (err) {
