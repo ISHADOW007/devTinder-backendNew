@@ -78,3 +78,12 @@ DevTinder is a developer matchmaking and networking platform — like Tinder, bu
 ```bash
 git clone https://github.com/ISHADOW007/devTinder-backendNew.git
 cd devTinder-backendNew
+
+```
+----
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
