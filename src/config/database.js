@@ -1,9 +1,7 @@
 const mongoose =require('mongoose')
 
 const connectDB=async ()=>{
-    mongoose.connect(
-    "mongodb+srv://satyam:satyam@cluster0.fw3mlss.mongodb.net/devtinder-backend"
-)
+    mongoose.connect(process.env.MONGO_URI)
 }
 
 module.exports=connectDB
