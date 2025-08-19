@@ -3,7 +3,7 @@ const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
-const JWT_SECRET = "your_jwt_secret_key"; // 🔐 Move this to .env in production
+
 
 
 const userSchema = new mongoose.Schema(
