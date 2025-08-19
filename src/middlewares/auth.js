@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
-const JWT_SECRET = "your_jwt_secret_key";
 
 const userAuth = async (req, res, next) => {
   try {
@@ -12,7 +11,7 @@ const userAuth = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token,  process.env.JWT_SECRET);
 
     // Consistency fix: your payload is `{ _id: user._id }`, so use _id
     const user = await User.findById(decoded._id).select("-password");

@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 
 const JWT_SECRET = "your_jwt_secret_key"; // 🔐 Move this to .env in production
 
+
 const userSchema = new mongoose.Schema(
   {
     googleId: {
@@ -160,7 +161,7 @@ const userSchema = new mongoose.Schema(
 
 // ✅ JWT Generation Method
 userSchema.methods.getJWT = function () {
-  return jwt.sign({ _id: this._id }, JWT_SECRET, { expiresIn: "1d" });
+  return jwt.sign({ _id: this._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
 };
 
 // ✅ Password Comparison Method
